@@ -1,0 +1,259 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE)
+library(tidyverse)
+library(lubridate)
+source("../../scripts/viridis.R")
+#source("../../scripts/ggprob.R")
+```
+
+## Homework 8
+
+#### Due Friday, March 26, 11:59 PM CT
+
+### Wai Zin Linn
+
+
+### Problems
+
+### 1
+
+In the problem we will create a graphic to visualize confidence intervals for the proportion of times the prosocial token is selected by the chimpanzees.  Read in the `chimpanzee.csv` data file, then follow the steps below.  
+
+- Make a plot that displays a point at the proportion of times the prosocial choice is made (i.e., the point estimate $\hat{p}$) in trials when a partner is present and in trials when a partner is not present.  These estimates are based on all the chimpanzee actors data combined.  There will be two points on your graphic for this step.  The y-axis is for the proportions and the x-axis is for the experimental condition (with a partner or without a partner).  
+- Add a thin blue (vertical) line segment for each point to visualize a 95% Wald confidence interval.  The lines should extend vertically from the lower bound to the upper bound of the confidence interval, and the point estimate from the previous step will be in the middle of the interval.     
+-  Similarly, add a slightly thicker black segment to visualize the interval one standard error above and below the point estimates.  
+- If your point estimates are no longer clearly visible, you may want to instead add them to your graphic after plotting the CI and SE segments.    
+- Add a horizontal red dashed line at p = 0.5.  
+- Label axes appropriately and add an informative title to the plot. 
+
+Hint:  Your final plot should have two vertical lines with the layered segments for the CIs and the SE intervals, a point in the center of each vertical line, and a horizontal dashed line.  
+
+```{r}
+chimp <- read_csv("../../data/chimpanzee.csv")%>%
+  mutate(with_partner = case_when(
+    partner == "none" ~ "No Partner",
+    TRUE ~ "Partner"))
+
+chimp%>%
+  group_by(with_partner)%>%
+  summarize(prosocial_total = sum(prosocial), 
+            selfish_total = sum(selfish), 
+            n = prosocial_total+selfish_total, 
+            p_hat = prosocial_total/n,
+            se = sqrt(p_hat*(1-p_hat)/n))%>%
+  ggplot()+
+  geom_segment(mapping = aes(x = with_partner, xend = with_partner, 
+                             y = p_hat + ((-1)*qnorm(1 - (1 - .95)/2)*se),
+                             yend = p_hat + ((1)*qnorm(1 - (1 - .95)/2)*se)),color="blue") +
+  geom_pointrange(size = 1, mapping = aes(x = with_partner, y = p_hat, ymin = p_hat-se, ymax = p_hat+se))+
+  geom_hline(yintercept = 0.5, color = "red", linetype = "dashed") +
+  xlab("Partner")+
+  ylab("Probability")+
+  ggtitle("Proportion of times the prosocial choice made")
+
+```
+
+### 2 
+
+Consider Chimpanzee actor E in the setting with a partner present.  Compute 99%, 95%, 90%, and 80% Wald confidence intervals for p, the probability of selecting the prosocial token.  
+
+Print out all four confidence intervals.
+
+```{r}
+df3<-chimp%>%
+  filter(actor == "E" & with_partner != "No Partner")%>%
+  group_by(partner) %>%
+  summarize(prosocial = sum(prosocial), selfish = sum(selfish), 
+            n = prosocial+selfish)
+
+binom_se <-  function(n,p)
+{
+  return ( sqrt( p*(1-p)/n) )
+}
+
+binom_ci <- function(est,se,conf)
+{
+  z <- qnorm(1 - (1 - conf)/2)
+  me <- z * se
+  ci <- est + c(-1,1)*me
+  return(ci)
+}
+
+x <- 14
+n <- 30
+
+p_hat <- x/n
+se_wald = binom_se(n,p_hat)
+
+ci_wald_99 <- binom_ci(p_hat,se_wald,0.99)
+ci_wald_95 <- binom_ci(p_hat,se_wald,0.95)
+ci_wald_90 <- binom_ci(p_hat,se_wald,0.90)
+ci_wald_80 <- binom_ci(p_hat,se_wald,0.80)
+
+print("Partner C's 99% CI to 80%")
+print(ci_wald_99)
+print(ci_wald_95)
+print(ci_wald_90)
+print(ci_wald_80)
+
+x1 <- 14
+n1 <- 30
+
+p_hat1 <- x1/n1
+se_wald1 = binom_se(n1,p_hat1)
+
+ci_wald1_99 <- binom_ci(p_hat1,se_wald1,0.99)
+ci_wald1_95 <- binom_ci(p_hat1,se_wald1,0.95)
+ci_wald1_90 <- binom_ci(p_hat1,se_wald1,0.90)
+ci_wald1_80 <- binom_ci(p_hat1,se_wald1,0.80)
+
+print("Partner I's 99% CI to 80%")
+print(ci_wald1_99)
+print(ci_wald1_95)
+print(ci_wald1_90)
+print(ci_wald1_80)
+
+x2 <- 20
+n2 <- 30
+
+p_hat2 <- x2/n2
+se_wald2 = binom_se(n2,p_hat2)
+
+ci_wald2_99 <- binom_ci(p_hat2,se_wald2,0.99)
+ci_wald2_95 <- binom_ci(p_hat2,se_wald2,0.95)
+ci_wald2_90 <- binom_ci(p_hat2,se_wald2,0.90)
+ci_wald2_80 <- binom_ci(p_hat2,se_wald2,0.80)
+
+print("Partner J's 99% CI to 80%")
+print(ci_wald2_99)
+print(ci_wald2_95)
+print(ci_wald2_90)
+print(ci_wald2_80)
+
+```
+
+### 3
+
+Summarize the full chimpanzee data set with a data frame that has one row for each actor chimpanzee (A-G), and columns for the variables listed below.  Print out the final data frame.  
+Note:  the variables below are for the trials *with* a partner.
+
+- `n`, the number of trials with a partner
+- `prosocial`, the number of prosocial choices with a partner
+- `selfish`, the number of selfish choices with a partner
+- `p_hat`, the observed proportion of prosocial choices in trials with a partner
+- `se_wald`, the estimated standard error using `p_hat` and `n`
+- `a_wald`, the lower boundary of the Wald 90% confidence interval
+- `b_wald`, the upper boundary of the Wald 90% confidence interval
+- `p_tilde`, the Agresti-Coull point estimate of `p`
+- `se_agresti`, the estimated standard error from the Agresti-Coull method
+- `a_agresti`, the lower boundary of the Agresti-Coull 90% confidence interval
+- `b_agresti`, the upper boundary of the Agresti-Coull 90% confidence interval
+
+```{r}
+df<-chimp%>%
+  filter(with_partner == "Partner")%>%
+  group_by(actor)%>%
+  summarize(n=sum(prosocial)+sum(selfish),
+            prosocial=sum(prosocial),
+            selfish=sum(selfish),
+            p_hat=(prosocial/n),
+            se_wald=sqrt(p_hat*(1-p_hat)/n),
+            a_wald=p_hat+(-1)*qnorm(1 - (1 - .9)/2)*se_wald,
+            b_wald=p_hat+(1)*qnorm(1 - (1 - .9)/2)*se_wald,
+            p_tilde=(prosocial+2)/(n+4),
+            se_agresti=sqrt(p_hat*(1-p_hat)/(n+4)),
+            a_agresti=p_tilde+(-1)*qnorm(1 - (1 - .9)/2)*se_agresti,
+            b_agresti=p_tilde+(1)*qnorm(1 - (1 - .9)/2)*se_agresti)
+df
+```
+
+### 4
+
+- Using the table from Question 3, make a plot with two line segments for each actor chimpanzee, one displaying the Wald 90% confidence interval and one for the Agresti 90% confidence interval.  
+- Add a point representing the point estimate to each interval.  
+- Plot the line segments for each actor close to each other for easy comparison.  
+- Add a horizontal black dashed line at $p=0.5$.  
+- Label axes appropriately and add an informative title to the plot.
+
+Hint:  The `actor` values are strings, which end up getting plotted at 1, 2, ..., 7 on the x-axis (but labeled as the actor's letter A:G).  In order to plot the Wald and Agresti confidence intervals for each actor near each other (and not overlapping), you may consider using `as.integer(as.factor(actor))` plus some small number (e.g., 0.15) to move the x-axis values for one of the intervals slightly.  The result is for one intervals (e.g., Wald) to be plot at the integer values (1:7), and the other interval (e.g., Agresti-Coull) to be plotted at 1.15, 2.15, ..., 7.15.
+
+```{r}
+ggplot(df)+
+  geom_point(aes(x=actor,y=p_hat))+
+  geom_point(aes(x=as.integer(as.factor(actor))+0.15,y=p_hat))+
+  geom_segment(aes(x = actor, xend = actor, y = a_wald, yend = b_wald), color = "red")+
+  geom_segment(aes(x = as.integer(as.factor(actor))+0.15, 
+                   xend = as.integer(as.factor(actor))+0.15, 
+                   y = a_agresti, yend = b_agresti), color = "blue")+
+  geom_hline(yintercept = 0.5, linetype="dashed")+
+  xlab("Actor")+
+  ylab("Probability")+
+  ggtitle("Comparing Wald and Agresti CI for all actors")
+```
+
+### 5
+
+Suppose we computed a 95% confidence interval for the proportion of times one of the actor chimpanzees, say Chimpanzee A, selected the prosocial token to be [0.585,	0.748].  Can we say that there is a 95% probability that the interval [0.585,	0.748] contains the true proportion for selecting the prosocial token? Briefly explain your answer.
+
+No, we can't say that there is 95% probability that the interval [0.585,0.748] contains the true proportion for selecting the prosocial token. This is because we cannot say as 95% "probability". Confidence Interval is about assuming that we are 95% confident that the interval can capture true mean.The observed interval may overestimate or underestimate the true mean. Therefore, there isn't exactly 95% probability that the true mean is in the interval.
+
+### 6
+
+Consider a Binomial random variable X ~ Binomial(40, p).  
+
+- Create a plot of the likelihood function L(p | X=x) if you observe x = 20, that is plot L(p | X=20).  
+- Add a red vertical dashed line at the maximum likelihood estimate, and a blue vertical dotted line at the Agresti-Coull estimate. 
+- Add meaningful axis labels and title. 
+
+Repeat this for x = 15 and x = 35 so that you end up creating three total graphics.
+
+For each of the three plots, what is the relationship between the two point estimates (e.g., is the Wald greater than the Agresti-Coull estimate? Or vice versa?)?  Why is this happening?
+
+In x=20 graph, Wald and Agresti-Cull estimate are identical, in x=15 graph, Agresti-Cull estimate is greater than Wald, in x=35, Wald estimate is greater than Agresti-Cull. This is happening because Agrest-Cull estimates are pulled toward 0.5 (in this case- 20). Therefore, in the case of x=15, Agresti-Cull estimate is more than Wald because Agresti-Cull is drawn toward 20 side (greater than 15). As for x=35, Agresti-Cull estimate is less than Wald because Agresti-Cull is drawn toward 20 (less than 35).
+
+```{r}
+n1 <- 40
+x1 <- 20
+
+df2 <- tibble(pseq=seq(0,1,by=.01), L=dbinom(x1,n1,pseq))
+
+ggplot(df2, aes(pseq, L)) +
+  geom_point() +
+  xlab("p") +
+  ylab("L(p | X=20)") +
+  ggtitle(paste0("L(p|X=20)")) +
+  geom_vline(xintercept=x1/n1, color="red",linetype="dashed")+
+  geom_vline(xintercept=(x1+2)/(n1+4), color="blue",linetype="dashed")
+
+n2 <- 40
+x2 <- 15
+
+df3 <- tibble(pseq=seq(0,1,by=.01), L=dbinom(x2,n2,pseq))
+
+ggplot(df3, aes(pseq, L)) +
+  geom_point() +
+  xlab("p") +
+  ylab("L(p | X=15)") +
+  ggtitle(paste0("L(p|X=15)")) +
+  geom_vline(xintercept=x2/n2, color="red",linetype="dashed")+
+  geom_vline(xintercept=(x2+2)/(n2+4), color="blue",linetype="dashed")
+
+n3 <- 40
+x3 <- 35
+
+df4 <- tibble(pseq=seq(0,1,by=.01), L=dbinom(x3,n3,pseq))
+
+ggplot(df4, aes(pseq, L)) +
+  geom_point() +
+  xlab("p") +
+  ylab("L(p | X=35)") +
+  ggtitle(paste0("L(p|X=35)")) +
+  geom_vline(xintercept=x3/n3, color="red",linetype="dashed")+
+  geom_vline(xintercept=(x3+2)/(n3+4), color="blue",linetype="dashed")
+
+```
+
