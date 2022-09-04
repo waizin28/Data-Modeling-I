@@ -1,0 +1,166 @@
+---
+title: "Assignment 4"
+author: "Wai Zin Linn"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, fig.height = 3)
+library(tidyverse)
+library(lubridate)
+## Note: this code assumes viridis.R is two steps up the file directory tree
+## Comment it out and use the line below if the file is in the same directory
+## Or comment out both lines if you do not have the file
+source("../../scripts/viridis.R")
+```
+
+#### Due Friday, February 19, 11:59 PM
+
+```{r read-data, echo = FALSE}
+## Read in the csv file
+## Select some variables that we will work with and rename them
+planets <- read_csv("../../data/exoplanets-3sept2020.csv") %>%
+  filter(default_flag == 1) %>%
+  select(pl_name, hostname, discoverymethod, disc_year, sy_pnum, pl_rade, pl_bmasse) %>%
+  rename(planet=pl_name, star=hostname, method=discoverymethod,year=disc_year, number=sy_pnum, radius=pl_rade, mass=pl_bmasse)
+```
+
+
+### Problems
+
+### 1
+
+> Calculate the minimum, median, and maximum value of mass for planets that were discovered in 1998, 2002, 2006, 2010, 2014, and 2018 using the method `Radial Velocity`. 
+
+-  Print these summary statistics in a table by year, so that each row corresponds to a different year and the columns are year, min, median, and max.  
+-  Answer the question below the code chunk.
+
+
+```{r}
+planets%>%
+  filter(method=="Radial Velocity", year %in% c(1998,2002,2006,2010,2014,2018))%>%
+  group_by(year)%>%
+  summarise(min = min(mass), median = median(mass), max = max(mass))
+```
+
+Is there a trend between the minimum mass and year?  If so, what is it?
+
+As the year progress, the minimum mass become smaller and smaller (decreasing trend). 
+
+### 2
+
+> How many planets were discovered using the method `Imaging`?
+
+- Print the results in a table that shows the distribution of the counts by `number` (the number of exoplanets discovered orbiting the same star).  
+-  In  addition to the counts (by `number`), also include the minimum and maximum mass (by `number`) for which mass was estimated.  
+-  For this question, do **not** drop the missing values by row.  Instead, you can use `na.rm=TRUE` in the `min()` and `max()` functions which removes the missing values in those calculations.  
+-  Your solution should be a table with a column for number, count, min, and max, and the rows should correspond to different values for `number`.
+
+```{r}
+planets%>%
+  filter(method == "Imaging")%>%
+  group_by(number)%>%
+  summarise(count = n(), min = min(mass,na.rm=TRUE),max = max(mass,na.rm=TRUE))
+
+```
+
+51 planets discovered using the method imaging. 
+
+### 3
+
+> Only a handful of planets have both an estimated mass AND an estimated radius less than those of the Earth.  What are the names of these planets and what method(s) were used to detect them?  
+
+- Print a data frame that has the star name, planet name, method, mass, and radius of the planets that have **both** an estimated mass < 1 Earth mass and an estimated radius < 1 Earth radius.  
+- Order the rows increasing by mass.
+
+```{r}
+planets%>%
+  filter(radius < 1 & mass < 1)%>%
+  arrange(mass)%>%
+  select(-year,-number)
+```
+The planets that have mass and radius less than Earth would be Kepler-138 b, K2-266 c,T RAPPIST-1 d, KOI-55 b, TRAPPIST-1 e, and KOI-55 c. The methods that I have used to detect them are filter, arrange and select. 
+
+### 4
+
+>  What are the planet names and estimated masses of each of the detected planets orbiting host stars that have *at least* one detected planet with a mass <  0.5 Earth Mass? 
+
+- Print your results in a table that has the planet names, the estimated masses, and the method of detection.  
+- You may find it useful to use the command `pull(star)` to extract the names of the stars that have at least one detected planet with a mass < 0.5 Earth Mass.
+
+```{r}
+planets%>%
+  filter(mass < 0.5)%>%
+  select(-star,-year,-number,-radius)
+```
+
+The planet names that have at least one detected planet with a mass < 0.5 Earth Mass is K2-266 c, KOI-55 b, Kepler-138 b, PSR B1257+12 b, and TRAPPIST-1 d. These planets have masses 0.29013, 0.44000, 0.06600, 0.02000, and 0.41000	respectively.
+
+### 5
+
+> Investigate the distribution of masses by decade.
+
+-  Make a data frame that excludes exoplanets discovered by the transit method and includes the variables `planet`, `method`, `year`, `number`, and `mass`.  
+-  Remove any of the remaining observations with missing values.
+- Create a variable called `decade` that assigns the observations to the appropriate decade between 1980 and 2020.  Set the labels to be characters showing the range of years for the decade such as "1981-1990", "1991-2000", etc.  You may find the `cut()` command useful here. 
+- Make side-by-side box plots of mass by decade.  
+-  Facet by `number`.
+-  Color the boxplots according to `number`.  
+-  Add appropriate titles to the x-axis and y-axis and put the y-axis on the `log10` scale using the `trans` option in `scale_y_continuous()`.  
+-  The x-axis labels may overlap;  adjust the labels so they do not overlap.
+
+
+```{r}
+breaks <- seq(1980,2020,10)
+labels <- str_c((breaks+1)[-5],breaks[-1],sep="-")
+
+box <- planets%>%
+  filter(method != "Transit")%>%
+  select(planet,method,year,number,mass)%>%
+  drop_na()%>%
+  mutate(decade = cut(year,
+                      breaks = breaks,
+                      labels = labels))
+
+ggplot(box, aes(x=decade,y=mass,color=number)) +
+  geom_boxplot()+
+  facet_wrap(~number)+
+  scale_y_continuous(trans = "log10")+
+  xlab("Decades of observation (years)")+
+  ylab("Masses observed within each decade")+
+  ggtitle("Masses of planets observed over decades")+
+  theme(axis.text.x = element_text(angle=45))
+```
+
+
+
+### 6
+
+> The naming convention used for planets is that the first planet discovered orbiting a host star has a name that ends with "b" (often the name of the host star followed by the "b").  If a second planet is discovered orbiting a host star, it will use "c", then "d", etc.  Let's explore this convention.
+
+-  Create a new variable called `planet_order` that pulls the last value of `planet`.  To get the last value, we can use the R package stringr's command `str_sub()`: `str_sub(planet,-1)` (the first input specifies the variable and the -1 grabs the first value from the end).  Use the `str_sub()`  command with `mutate()` to define the new variable.  
+-  Create a data frame that includes only `planet_order`, `radius`, `mass`, and `number`; then drop the observations that have missing values.  
+- Remove the observations that have `planet_order` values of 1, 2, or "b".  
+- Create a scatterplot with radius on the x-axis, mass on the y-axis, color the points according to the planet order, and make the size of the points vary by the size of the system (i.e., by `number`).  
+-  Adjust both the x- and y-axis scales to the log10 scale.  
+-  Add descriptive x- and y-axis labels.
+
+
+```{r}
+newPlanet <- planets%>%
+  mutate(planet_order = str_sub(planet,-1))%>%
+  select(planet_order,radius,mass,number)%>%
+  drop_na()%>%
+  filter(!planet_order %in% c(1,2,"b"))
+
+ggplot(data=newPlanet,aes(x=radius,y=mass,color=planet_order,size=number))+
+  geom_point()+
+  scale_x_log10()+
+  scale_y_log10()+
+  xlab("Radius of Planets")+
+  ylab("Mass of Planets")
+```
+
+
+
+  
